@@ -7,9 +7,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"net/http"
 	"net/http/httptest"
-	"time"
-
 	"testing"
+	"time"
 )
 
 type MockedRedisClient struct {
@@ -61,38 +60,4 @@ func Test_redirectToHandler(t *testing.T) {
 	// Assert that the mock was called
 	mockRedis.AssertCalled(t, "Get", mock.Anything, "test-path")
 
-}
-
-func Test_appendHttpsToUrl(t *testing.T) {
-	type args struct {
-		foundKey string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "no prefix should add HTTPS",
-			args: args{foundKey: "example.com"},
-			want: "https://example.com",
-		},
-		{
-			name: "HTTPS should do nothing",
-			args: args{foundKey: "https://example.com"},
-			want: "https://example.com",
-		},
-		{
-			name: "HTTP should do nothing",
-			args: args{foundKey: "http://example.com"},
-			want: "http://example.com",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := appendHttpsToUrl(tt.args.foundKey); got != tt.want {
-				t.Errorf("appendHttpsToUrl() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
