@@ -53,7 +53,6 @@ func (rc *RedisClient) DefaultPathHandler(c *gin.Context) {
 			"message":      "Url created successfully",
 			"shortenedUrl": shortID,
 		})
-
 		return
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)

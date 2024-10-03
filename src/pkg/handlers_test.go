@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
 func TestAppendHttpsToUrl(t *testing.T) {
@@ -63,33 +62,36 @@ func TestRedirectToHandler(t *testing.T) {
 		name               string
 		args               args
 		want               string
-		redisShouldBeNil   bool
 		expectedStatusCode int
+		mockRedisAction    func()
 	}{
 		{
 			name:               "no prefix Http should add HTTPS",
-			args:               args{foundKey: "1234", foundKeyVal: "example.com"},
+			args:               args{foundKey: "1234"},
 			want:               "https://example.com",
 			expectedStatusCode: http.StatusFound,
+			mockRedisAction:    func() { mockRedis.ExpectGet("1234").SetVal("example.com") },
 		},
 		{
 			name:               "HTTP should still give HTTP",
-			args:               args{foundKey: "1234", foundKeyVal: "http://example.com"},
+			args:               args{foundKey: "1234"},
 			want:               "http://example.com",
 			expectedStatusCode: http.StatusFound,
+			mockRedisAction:    func() { mockRedis.ExpectGet("1234").SetVal("http://example.com") },
 		},
 		{
 			name:               "HTTP should do nothing",
-			args:               args{foundKey: "1234", foundKeyVal: "https://example.com"},
+			args:               args{foundKey: "1234"},
 			want:               "https://example.com",
 			expectedStatusCode: http.StatusFound,
+			mockRedisAction:    func() { mockRedis.ExpectGet("1234").SetVal("https://example.com") },
 		},
 		{
 			name:               "should break",
-			args:               args{foundKey: "1234", foundKeyVal: "https://example.com"},
+			args:               args{foundKey: "1234"},
 			want:               "",
 			expectedStatusCode: http.StatusInternalServerError,
-			redisShouldBeNil:   true,
+			mockRedisAction:    func() { mockRedis.ExpectGet("1234").SetErr(redis.Nil) },
 		},
 	}
 	for _, tt := range tests {
@@ -97,13 +99,7 @@ func TestRedirectToHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
 
-			if tt.redisShouldBeNil == true {
-				mockRedis.ExpectGet(tt.args.foundKey).SetErr(redis.Nil)
-			}
-
-			if tt.redisShouldBeNil == false {
-				mockRedis.ExpectGet(tt.args.foundKey).SetVal(tt.args.foundKeyVal)
-			}
+			tt.mockRedisAction()
 
 			req, _ := http.NewRequest("GET", "/redirectTo/"+tt.args.foundKey, nil)
 
@@ -136,27 +132,38 @@ func TestRedisClient_DefaultPathHandler(t *testing.T) {
 	}
 
 	type args struct {
-		foundKey         string
-		foundKeyVal      string
-		redisShouldBeNil bool
+		foundKey    string
+		foundKeyVal string
+		// 0: false, 1: true, 2: throws error
+		redisShouldBeNil int
 	}
 	tests := []struct {
 		name               string
 		args               args
 		want               string
 		expectedStatusCode int
+		mockRedisAction    func()
 	}{
 		{
-			name:               "1",
-			args:               args{foundKey: "1234", foundKeyVal: "example.com", redisShouldBeNil: true},
+			name:               "Redis found key should return 200",
 			want:               "example.com",
-			expectedStatusCode: http.StatusCreated,
+			args:               args{foundKeyVal: "example.com"},
+			expectedStatusCode: http.StatusOK,
+			mockRedisAction:    func() { mockRedis.ExpectGet("example.com").SetVal("1234") },
 		},
 		{
-			name:               "2",
-			args:               args{foundKey: "1234", foundKeyVal: "example.com", redisShouldBeNil: false},
+			name:               "Redis not found key should create (201)",
 			want:               "example.com",
-			expectedStatusCode: http.StatusOK,
+			args:               args{foundKeyVal: "example.com"},
+			expectedStatusCode: http.StatusCreated,
+			mockRedisAction:    func() { mockRedis.ExpectGet("example.com").SetErr(redis.Nil) },
+		},
+		{
+			name:               "Redis broke with proto/other error",
+			args:               args{foundKeyVal: "1234"},
+			want:               "example.com",
+			expectedStatusCode: http.StatusInternalServerError,
+			mockRedisAction:    func() { mockRedis.ExpectGet("example.com").SetErr(redis.TxFailedErr) },
 		},
 	}
 	for _, tt := range tests {
@@ -164,13 +171,7 @@ func TestRedisClient_DefaultPathHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
 
-			if tt.args.redisShouldBeNil == true {
-				mockRedis.ExpectGet(tt.args.foundKeyVal).SetErr(redis.Nil)
-				mockRedis.ExpectSet(tt.args.foundKey, tt.args.foundKeyVal, time.Hour*25).SetVal("OK")
-				mockRedis.ExpectSet(tt.args.foundKeyVal, tt.args.foundKey, time.Hour*25).SetVal("OK")
-			} else {
-				mockRedis.ExpectGet(tt.args.foundKeyVal).SetVal(tt.args.foundKey)
-			}
+			tt.mockRedisAction()
 
 			req, _ := http.NewRequest("GET", "/url/"+tt.args.foundKeyVal, nil)
 
@@ -180,11 +181,7 @@ func TestRedisClient_DefaultPathHandler(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			//expectedLocation := tt.want
-
-			//assert.NoError(t, mockRedis.ExpectationsWereMet())
 			assert.Equal(t, tt.expectedStatusCode, w.Code)
-			//assert.Equal(t, expectedLocation, w.Header().Get("Location"))
 			mockRedis.ClearExpect()
 
 		})
