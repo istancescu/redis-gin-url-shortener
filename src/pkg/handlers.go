@@ -1,12 +1,20 @@
 package pkg
 
 import (
+	"context"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"log"
 	"net/http"
 	"strings"
+	"time"
+)
+
+const (
+	duration    = time.Hour * 25
+	prefixHttp  = "http://"
+	prefixHttps = "https://"
 )
 
 func (rc *RedisClient) RedirectToHandler(c *gin.Context) {
@@ -14,14 +22,10 @@ func (rc *RedisClient) RedirectToHandler(c *gin.Context) {
 
 	redirectUrl := c.Param("path")
 
-	foundKey, err := rc.client.Get(ctx, redirectUrl).Result()
+	foundKey, err := rc.Client.Get(ctx, redirectUrl).Result()
 
-	if errors.Is(err, redis.Nil) {
-		log.Printf("Redirect url %s not exist", redirectUrl)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	} else if err != nil {
-		log.Printf("Redirect url %s not exist", redirectUrl)
+	if err != nil {
+		log.Printf("Redirect url %s not exist / other error occured", redirectUrl)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -35,37 +39,25 @@ func (rc *RedisClient) RedirectToHandler(c *gin.Context) {
 }
 
 func (rc *RedisClient) DefaultPathHandler(c *gin.Context) {
+	//TODO simplify this logic
 	urlToShorten := c.Param("urlToShorten")
 
 	ctx := c.Request.Context()
 
-	_, err := rc.client.Get(ctx, urlToShorten).Result()
+	// urlToShorten (google.com) is used to retrieve key if already existent (1234)
+	foundUrl, err := rc.Client.Get(ctx, urlToShorten).Result()
 
 	if errors.Is(err, redis.Nil) {
-		_, shortID := ShortenUrl()
-
-		_, _ = rc.client.Set(ctx, urlToShorten, shortID, duration).Result()
-		_, _ = rc.client.Set(ctx, shortID, urlToShorten, duration).Result()
-
-		log.Printf("{%s} : {%s} \n", urlToShorten, shortID)
-		log.Printf("{%s} : {%s} \n", shortID, urlToShorten)
-
+		shortID := rc.addCreatedUrlToRedis(ctx, urlToShorten)
 		c.JSONP(http.StatusCreated, gin.H{
 			"message":      "Url created successfully",
 			"shortenedUrl": shortID,
 		})
+
 		return
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		log.Printf("{%s} : {%s} \n", urlToShorten, err)
-		return
-	}
-
-	foundUrl, err := rc.client.Get(ctx, urlToShorten).Result()
-
-	if err != nil {
-		log.Printf("{%s} : {%s} \n", urlToShorten, err)
-		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
@@ -74,6 +66,18 @@ func (rc *RedisClient) DefaultPathHandler(c *gin.Context) {
 		"shortenedUrl": foundUrl})
 
 	return
+}
+
+func (rc *RedisClient) addCreatedUrlToRedis(ctx context.Context, urlToShorten string) string {
+	_, shortID := ShortenUrl()
+
+	//TODO error handling
+	_, _ = rc.Client.Set(ctx, urlToShorten, shortID, duration).Result()
+	_, _ = rc.Client.Set(ctx, shortID, urlToShorten, duration).Result()
+
+	log.Printf("{%s} : {%s} \n", urlToShorten, shortID)
+	log.Printf("{%s} : {%s} \n", shortID, urlToShorten)
+	return shortID
 }
 
 func AppendHttpsToUrl(foundKey string) string {
