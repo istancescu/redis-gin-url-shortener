@@ -55,8 +55,7 @@ func TestRedirectToHandler(t *testing.T) {
 	}
 
 	type args struct {
-		foundKey    string
-		foundKeyVal string
+		foundKey string
 	}
 	tests := []struct {
 		name               string
@@ -95,7 +94,6 @@ func TestRedirectToHandler(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
 
@@ -132,10 +130,7 @@ func TestRedisClient_DefaultPathHandler(t *testing.T) {
 	}
 
 	type args struct {
-		foundKey    string
 		foundKeyVal string
-		// 0: false, 1: true, 2: throws error
-		redisShouldBeNil int
 	}
 	tests := []struct {
 		name               string
@@ -167,7 +162,6 @@ func TestRedisClient_DefaultPathHandler(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
 

@@ -17,6 +17,21 @@ const (
 	prefixHttps = "https://"
 )
 
+type KeyValueStore interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key string, value string, expiration time.Duration) error
+}
+
+func (rc *RedisClient) Get(ctx context.Context, key string) (string, error) {
+	return rc.Client.Get(ctx, key).Result()
+}
+
+// Set stores a key-value pair in Redis
+func (rc *RedisClient) Set(ctx context.Context, key string, value string, expiration time.Duration) error {
+	_, err := rc.Client.Set(ctx, key, value, expiration).Result()
+	return err
+}
+
 func (rc *RedisClient) RedirectToHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -34,8 +49,6 @@ func (rc *RedisClient) RedirectToHandler(c *gin.Context) {
 
 	// Redirect to the dynamically constructed URL
 	c.Redirect(http.StatusFound, url)
-
-	return
 }
 
 func (rc *RedisClient) DefaultPathHandler(c *gin.Context) {
@@ -45,16 +58,18 @@ func (rc *RedisClient) DefaultPathHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// urlToShorten (google.com) is used to retrieve key if already existent (1234)
-	foundUrl, err := rc.Client.Get(ctx, urlToShorten).Result()
+	foundUrl, err := rc.Get(ctx, urlToShorten)
 
 	if errors.Is(err, redis.Nil) {
-		shortID := rc.addCreatedUrlToRedis(ctx, urlToShorten)
+		shortID := rc.createShortenedUrl(ctx, urlToShorten)
 		c.JSONP(http.StatusCreated, gin.H{
 			"message":      "Url created successfully",
 			"shortenedUrl": shortID,
 		})
 		return
-	} else if err != nil {
+	}
+
+	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		log.Printf("{%s} : {%s} \n", urlToShorten, err)
 		return
@@ -63,16 +78,14 @@ func (rc *RedisClient) DefaultPathHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "URL already cached",
 		"shortenedUrl": foundUrl})
-
-	return
 }
 
-func (rc *RedisClient) addCreatedUrlToRedis(ctx context.Context, urlToShorten string) string {
+func (rc *RedisClient) createShortenedUrl(ctx context.Context, urlToShorten string) string {
 	_, shortID := ShortenUrl()
 
 	//TODO error handling
-	_, _ = rc.Client.Set(ctx, urlToShorten, shortID, duration).Result()
-	_, _ = rc.Client.Set(ctx, shortID, urlToShorten, duration).Result()
+	_ = rc.Client.Set(ctx, urlToShorten, shortID, duration)
+	_ = rc.Client.Set(ctx, shortID, urlToShorten, duration)
 
 	log.Printf("{%s} : {%s} \n", urlToShorten, shortID)
 	log.Printf("{%s} : {%s} \n", shortID, urlToShorten)
