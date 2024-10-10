@@ -101,7 +101,7 @@ func TestRedirectToHandler(t *testing.T) {
 
 			req, _ := http.NewRequest("GET", "/redirectTo/"+tt.args.foundKey, nil)
 
-			router.GET("/redirectTo/:path", client.RedirectToHandler)
+			router.GET("/redirectTo/:path", RedirectToHandler(client))
 
 			w := httptest.NewRecorder()
 
@@ -169,7 +169,7 @@ func TestRedisClient_DefaultPathHandler(t *testing.T) {
 
 			req, _ := http.NewRequest("GET", "/url/"+tt.args.foundKeyVal, nil)
 
-			router.GET("/url/:urlToShorten", client.DefaultPathHandler)
+			router.GET("/url/:urlToShorten", DefaultPathHandler(client))
 
 			w := httptest.NewRecorder()
 

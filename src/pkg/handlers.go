@@ -32,60 +32,64 @@ func (rc *RedisClient) Set(ctx context.Context, key string, value string, expira
 	return err
 }
 
-func (rc *RedisClient) RedirectToHandler(c *gin.Context) {
-	ctx := c.Request.Context()
+func RedirectToHandler(store KeyValueStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
 
-	redirectUrl := c.Param("path")
+		redirectUrl := c.Param("path")
 
-	foundKey, err := rc.Client.Get(ctx, redirectUrl).Result()
+		foundKey, err := store.Get(ctx, redirectUrl)
 
-	if err != nil {
-		log.Printf("Redirect url %s not exist / other error occured", redirectUrl)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
+		if err != nil {
+			log.Printf("Redirect url %s not exist / other error occured", redirectUrl)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		url := AppendHttpsToUrl(foundKey)
+
+		// Redirect to the dynamically constructed URL
+		c.Redirect(http.StatusFound, url)
 	}
-
-	url := AppendHttpsToUrl(foundKey)
-
-	// Redirect to the dynamically constructed URL
-	c.Redirect(http.StatusFound, url)
 }
 
-func (rc *RedisClient) DefaultPathHandler(c *gin.Context) {
+func DefaultPathHandler(store KeyValueStore) gin.HandlerFunc {
 	//TODO simplify this logic
-	urlToShorten := c.Param("urlToShorten")
+	return func(c *gin.Context) {
+		urlToShorten := c.Param("urlToShorten")
 
-	ctx := c.Request.Context()
+		ctx := c.Request.Context()
 
-	// urlToShorten (google.com) is used to retrieve key if already existent (1234)
-	foundUrl, err := rc.Get(ctx, urlToShorten)
+		// urlToShorten (google.com) is used to retrieve key if already existent (1234)
+		foundUrl, err := store.Get(ctx, urlToShorten)
 
-	if errors.Is(err, redis.Nil) {
-		shortID := rc.createShortenedUrl(ctx, urlToShorten)
-		c.JSONP(http.StatusCreated, gin.H{
-			"message":      "Url created successfully",
-			"shortenedUrl": shortID,
-		})
-		return
+		if errors.Is(err, redis.Nil) {
+			shortID := createShortenedUrl(store, ctx, urlToShorten)
+			c.JSONP(http.StatusCreated, gin.H{
+				"message":      "Url created successfully",
+				"shortenedUrl": shortID,
+			})
+			return
+		}
+
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			log.Printf("{%s} : {%s} \n", urlToShorten, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":      "URL already cached",
+			"shortenedUrl": foundUrl})
 	}
-
-	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		log.Printf("{%s} : {%s} \n", urlToShorten, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":      "URL already cached",
-		"shortenedUrl": foundUrl})
 }
 
-func (rc *RedisClient) createShortenedUrl(ctx context.Context, urlToShorten string) string {
+func createShortenedUrl(store KeyValueStore, ctx context.Context, urlToShorten string) string {
 	_, shortID := ShortenUrl()
 
 	//TODO error handling
-	_ = rc.Client.Set(ctx, urlToShorten, shortID, duration)
-	_ = rc.Client.Set(ctx, shortID, urlToShorten, duration)
+	_ = store.Set(ctx, urlToShorten, shortID, duration)
+	_ = store.Set(ctx, shortID, urlToShorten, duration)
 
 	log.Printf("{%s} : {%s} \n", urlToShorten, shortID)
 	log.Printf("{%s} : {%s} \n", shortID, urlToShorten)
