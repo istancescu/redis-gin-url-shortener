@@ -37,6 +37,9 @@ func TestCreateNewRedisConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if !tt.args.shouldError {
 				if got, _ := ProvideRedisConfig(tt.args.path); !reflect.DeepEqual(got, tt.want) {
+					assert.Equal(t, tt.want.Addr, got.Addr, "addr")
+					assert.Equal(t, tt.want.DB, got.DB, "db")
+					assert.Equal(t, tt.want.Password, got.Password, "password")
 					t.Errorf("ProvideRedisConfig() = %v, want %v", got, tt.want)
 				}
 			} else {
