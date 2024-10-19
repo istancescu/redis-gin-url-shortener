@@ -7,7 +7,6 @@ require (
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/redis/go-redis/v9 v9.6.1
 	github.com/stretchr/testify v1.9.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -40,4 +39,5 @@ require (
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

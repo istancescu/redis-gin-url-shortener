@@ -11,11 +11,16 @@ const (
 )
 
 func main() {
-	redisConfig := config.ProvideRedisConfig(configFilePath)
+	redisConfig, err := config.ProvideRedisConfig(configFilePath)
+
+	if err != nil {
+		panic(err)
+	}
+
 	client := pkg.CreateNewRedisClient(redisConfig)
 	router := setupRouter(client)
 
-	err := router.Run()
+	err = router.Run()
 
 	if err != nil {
 		return

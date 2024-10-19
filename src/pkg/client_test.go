@@ -37,7 +37,7 @@ func TestAppendHttpsToUrl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := appendHttpsToUrl(tt.args.foundKey); got != tt.want {
+			if got := AppendHttpsToUrl(tt.args.foundKey); got != tt.want {
 				t.Errorf("appendHttpsToUrl() = %v, want %v", got, tt.want)
 			}
 		})
