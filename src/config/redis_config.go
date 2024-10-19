@@ -37,7 +37,7 @@ func loadConfigFromAFile(path string) (*RedisConfig, error) {
 	config, err := os.Open(path)
 
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't find file for path: %s \n", path)
+		return nil, fmt.Errorf("couldn't find file for path: %s \n", path)
 	}
 
 	defer config.Close()
@@ -48,7 +48,7 @@ func loadConfigFromAFile(path string) (*RedisConfig, error) {
 	err = decoder.Decode(&redisConfig)
 
 	if err != nil {
-		return nil, fmt.Errorf("There was a problem decoding the config file!")
+		return nil, fmt.Errorf("there was a problem decoding the config file")
 	}
 	return redisConfig, nil
 }
