@@ -1,6 +1,7 @@
 package main
 
 import (
+	"awesomeProject/src/config"
 	"awesomeProject/src/pkg"
 	"github.com/gin-gonic/gin"
 	"log"
