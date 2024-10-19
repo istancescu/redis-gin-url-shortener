@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	duration    = time.Hour * 25
+	duration    = time.Hour * 24
 	prefixHttp  = "http://"
 	prefixHttps = "https://"
 )
