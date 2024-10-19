@@ -2,14 +2,14 @@ package config
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/redis/go-redis/v9"
 	"gopkg.in/yaml.v3"
-	"log"
 	"os"
 )
 
 type RedisConfig struct {
-	Server struct {
+	Redis struct {
 		Host     string `yaml:"host"`
 		Port     string `yaml:"port"`
 		Password string `yaml:"password"`
@@ -17,34 +17,38 @@ type RedisConfig struct {
 	} `yaml:"redis"`
 }
 
-func CreateNewRedisConfig(path string) *redis.Options {
+func ProvideRedisConfig(path string) (*redis.Options, error) {
+	redisConfig, err := loadConfigFromAFile(path)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &redis.Options{
+		Addr:     redisConfig.Redis.Host + ":" + redisConfig.Redis.Port,
+		Password: redisConfig.Redis.Password,
+		DB:       redisConfig.Redis.DB,
+	}, nil
+}
+
+func loadConfigFromAFile(path string) (*RedisConfig, error) {
 	redisConfig := new(RedisConfig)
 
 	config, err := os.Open(path)
 
 	if err != nil {
-		log.Panicf("Couldn't find file for path: %s \n", path)
+		return nil, fmt.Errorf("Couldn't find file for path: %s \n", path)
 	}
 
-	defer func(config *os.File) {
-		err := config.Close()
-		if err != nil {
-			log.Panicln("Couldn't close file!")
-		}
-	}(config)
+	defer config.Close()
 
 	reader := bufio.NewReader(config)
-
 	decoder := yaml.NewDecoder(reader)
 
 	err = decoder.Decode(&redisConfig)
-	if err != nil {
-		log.Panicln("There was a problem decoding the config file!")
-	}
 
-	return &redis.Options{
-		Addr:     redisConfig.Server.Host + ":" + redisConfig.Server.Port,
-		Password: redisConfig.Server.Password,
-		DB:       redisConfig.Server.DB,
+	if err != nil {
+		return nil, fmt.Errorf("There was a problem decoding the config file!")
 	}
+	return redisConfig, nil
 }

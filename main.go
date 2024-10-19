@@ -11,7 +11,7 @@ const (
 )
 
 func main() {
-	redisConfig := config.CreateNewRedisConfig(configFilePath)
+	redisConfig := config.ProvideRedisConfig(configFilePath)
 	client := pkg.CreateNewRedisClient(redisConfig)
 	router := setupRouter(client)
 

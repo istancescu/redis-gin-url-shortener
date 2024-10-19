@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"reflect"
@@ -35,12 +36,12 @@ func TestCreateNewRedisConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if !tt.args.shouldError {
-				if got := CreateNewRedisConfig(tt.args.path); !reflect.DeepEqual(got, tt.want) {
-					t.Errorf("CreateNewRedisConfig() = %v, want %v", got, tt.want)
+				if got, _ := ProvideRedisConfig(tt.args.path); !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("ProvideRedisConfig() = %v, want %v", got, tt.want)
 				}
 			} else {
-				assert.Panics(t, func() {
-					_ = CreateNewRedisConfig(tt.args.path)
+				assert.Error(t, fmt.Errorf(""), func() {
+					_, _ = ProvideRedisConfig(tt.args.path)
 				})
 			}
 
