@@ -1,21 +1,24 @@
 package main
 
 import (
-	"awesomeProject/src/config"
 	"awesomeProject/src/pkg"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
-const (
-	configFilePath string = "config.yaml"
-)
+func getRedisOptions() *redis.Options {
+	return &redis.Options{
+		Addr:     "localhost:6379",
+		Password: "1234", // no password set
+		DB:       0,      // use default DB
+	}
+}
 
 func main() {
-	redisConfig := config.CreateNewRedisConfig(configFilePath)
-	client := pkg.CreateNewRedisClient(redisConfig)
-	router := setupRouter(client)
+	client := pkg.CreateNewRedisClient(getRedisOptions())
+	r := setupRouter(client)
 
-	err := router.Run()
+	err := r.Run()
 
 	if err != nil {
 		return
