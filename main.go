@@ -1,9 +1,9 @@
 package main
 
 import (
-	"awesomeProject/src/config"
 	"awesomeProject/src/pkg"
 	"github.com/gin-gonic/gin"
+	"log"
 )
 
 const (
@@ -12,11 +12,9 @@ const (
 
 func main() {
 	redisConfig, err := config.ProvideRedisConfig(configFilePath)
-
 	if err != nil {
-		panic(err)
+		log.Panicf("Error reading from yaml")
 	}
-
 	client := pkg.CreateNewRedisClient(redisConfig)
 	router := setupRouter(client)
 
