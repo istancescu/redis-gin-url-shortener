@@ -18,7 +18,7 @@ type RedisConfig struct {
 }
 
 func ProvideRedisConfig(path string) (*redis.Options, error) {
-	redisConfig, err := loadConfigFromAFile(path)
+	redisConfig, err := loadConfigFromAFile[RedisConfig](path)
 
 	if err != nil {
 		return nil, err
@@ -31,8 +31,8 @@ func ProvideRedisConfig(path string) (*redis.Options, error) {
 	}, nil
 }
 
-func loadConfigFromAFile(path string) (*RedisConfig, error) {
-	redisConfig := new(RedisConfig)
+func loadConfigFromAFile[T any](path string) (*T, error) {
+	configFile := new(T)
 
 	config, err := os.Open(path)
 
@@ -45,10 +45,10 @@ func loadConfigFromAFile(path string) (*RedisConfig, error) {
 	reader := bufio.NewReader(config)
 	decoder := yaml.NewDecoder(reader)
 
-	err = decoder.Decode(&redisConfig)
+	err = decoder.Decode(&configFile)
 
 	if err != nil {
 		return nil, fmt.Errorf("there was a problem decoding the config file")
 	}
-	return redisConfig, nil
+	return configFile, nil
 }
