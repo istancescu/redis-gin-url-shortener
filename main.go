@@ -4,6 +4,7 @@ import (
 	"awesomeProject/src/config"
 	"awesomeProject/src/pkg"
 	"github.com/gin-gonic/gin"
+	cors "github.com/rs/cors/wrapper/gin"
 	"log"
 )
 
@@ -28,6 +29,11 @@ func main() {
 
 func setupRouter(client *pkg.RedisClient) *gin.Engine {
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET"},
+	}))
 
 	r.GET("/url/:urlToShorten", pkg.DefaultPathHandler(client))
 	r.GET("/redirectTo/:path", pkg.RedirectToHandler(client))
