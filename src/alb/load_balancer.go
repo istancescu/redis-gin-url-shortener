@@ -1,14 +1,17 @@
 package alb
 
 import (
+	"github.com/gin-gonic/gin"
+	"log"
 	"net/http/httputil"
+	"net/url"
 	"sync"
 	"sync/atomic"
 )
 
+// TODO reimplement this using Linked List
 type LoadBalancer struct {
-	algorithm any
-	current   any
+	serverPool *ServerPool
 }
 
 type Status struct {
@@ -16,6 +19,7 @@ type Status struct {
 }
 
 type ServerConfiguration struct {
+	Timeout uint8
 }
 
 type AppServer struct {
@@ -30,44 +34,43 @@ type ServerPool struct {
 	current uint32
 }
 
-func CreateLoadBalancer(algorithm any) *LoadBalancer {
-	return &LoadBalancer{algorithm: algorithm}
+func CreateLoadBalancer(pool *ServerPool) *LoadBalancer {
+	return &LoadBalancer{pool}
 }
 
 func CreateServerPool() *ServerPool {
 	return &ServerPool{}
 }
 
-func CreateAppServer() *AppServer {
-	return &AppServer{}
+func CreateAppServer(configuration ServerConfiguration, url2 *url.URL) *AppServer {
+	return &AppServer{serverConfiguration: configuration,
+		status:       Status{isAlive: false},
+		ReverseProxy: httputil.NewSingleHostReverseProxy(url2),
+		mux:          &sync.RWMutex{},
+	}
 
 }
 
-func ProvideConfigurationForServer() *ServerConfiguration {
-	return &ServerConfiguration{}
-}
+func AddServer(s *ServerPool, a *AppServer) {
+	a.mux.Lock()
 
-func Create(s *ServerPool) *LoadBalancer {
-
-	//ServerPool{servers: make([]*AppServer, 0), current: nil}
-	return nil
-}
-
-func AddServer(s *ServerPool, server *AppServer) {
-	s.servers = append(s.servers, server)
-
+	defer a.mux.Unlock()
+	s.servers = append(s.servers, a)
 }
 
 func (a *AppServer) SetAlive(alive bool) {
 	a.mux.Lock()
+	defer a.mux.Unlock()
+
 	a.status.isAlive = alive
-	a.mux.Unlock()
 }
 
 func (a *AppServer) GetAlive() bool {
 	a.mux.RLock()
+	defer a.mux.RUnlock()
+
 	alive := a.status.isAlive
-	a.mux.RUnlock()
+
 	return alive
 }
 
@@ -92,4 +95,21 @@ func (sp *ServerPool) Next() *AppServer {
 		}
 	}
 	return nil
+}
+
+func (sp *ServerPool) HandleHTTPRequests(gin *gin.Context) {
+	log.Printf("HEY HEY HEY I AM HANDLING THE HTTP")
+	peer := sp.Next()
+
+	if peer == nil {
+		log.Printf("no peer found in this context \n")
+		return
+	}
+	if peer.GetAlive() {
+		urlToShorten := gin.Param("urlToShorten") // This extracts `google.com` from the path
+		gin.Request.URL.Path = "/url/" + urlToShorten
+		log.Printf("current server: %d", sp.current)
+		peer.ReverseProxy.ServeHTTP(gin.Writer, gin.Request)
+	}
+	return
 }
