@@ -78,7 +78,7 @@ func (sp *ServerPool) NextIndex() int {
 	return int(atomic.AddUint32(&sp.current, 1) % uint32(len(sp.servers)))
 }
 
-func (sp *ServerPool) Next() *AppServer {
+func (sp *ServerPool) NextPeer() *AppServer {
 	if len(sp.servers) == 0 {
 		return nil
 	}
@@ -99,7 +99,7 @@ func (sp *ServerPool) Next() *AppServer {
 
 func (sp *ServerPool) HandleHTTPRequests(gin *gin.Context) {
 	log.Printf("HEY HEY HEY I AM HANDLING THE HTTP")
-	peer := sp.Next()
+	peer := sp.NextPeer()
 
 	if peer == nil {
 		log.Printf("no peer found in this context \n")

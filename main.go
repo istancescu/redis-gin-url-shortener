@@ -26,8 +26,25 @@ func main() {
 
 	createAndRunLoadBalancer()
 
-	spawnMultipleServers(router, 3, []uint16{8080, 8081, 8083})
+	err = spawnMultipleServers(router, 3, []uint16{8080, 8081})
 
+	if err != nil {
+		log.Panicf("Error starting servers")
+	}
+
+}
+
+func createAndRunLoadBalancer() *gin.Engine {
+	// Initialize the Gin router
+	router := gin.Default()
+
+	// Apply any middlewares, like CORS
+	router.Use(cors.Default())
+
+	// Call the function to run the load balancer
+	runLoadBalancer(router)
+
+	return router
 }
 
 // TODO refactor this
@@ -38,12 +55,13 @@ func runLoadBalancer(router *gin.Engine) {
 		alb1Url, _ := url.Parse("http://localhost:8080")
 		alb2Url, _ := url.Parse("http://localhost:8081")
 
+		sp := alb.CreateServerPool()
+
 		alb1 := alb.CreateAppServer(albConfig, alb1Url)
 		alb2 := alb.CreateAppServer(albConfig, alb2Url)
 		alb1.SetAlive(true)
 		alb2.SetAlive(true)
 
-		sp := alb.CreateServerPool()
 		alb.AddServer(sp, alb1)
 		alb.AddServer(sp, alb2)
 
@@ -64,20 +82,11 @@ func runLoadBalancer(router *gin.Engine) {
 	}()
 }
 
-func createAndRunLoadBalancer() *gin.Engine {
-	// Initialize the Gin router
-	router := gin.Default()
+func spawnMultipleServers(router *gin.Engine, count uint8, port []uint16) error {
+	if count != uint8(len(port)) {
+		return fmt.Errorf("port count missmatches server count")
+	}
 
-	// Apply any middlewares, like CORS
-	router.Use(cors.Default())
-
-	// Call the function to run the load balancer
-	runLoadBalancer(router)
-
-	return router
-}
-
-func spawnMultipleServers(router *gin.Engine, count uint8, port []uint16) {
 	var wg sync.WaitGroup
 	wg.Add(int(count))
 	for i := 0; i < int(count); i++ {
@@ -90,6 +99,7 @@ func spawnMultipleServers(router *gin.Engine, count uint8, port []uint16) {
 		}(i)
 	}
 	wg.Wait()
+	return nil
 }
 
 func setupRouter(client *pkg.RedisClient) *gin.Engine {
